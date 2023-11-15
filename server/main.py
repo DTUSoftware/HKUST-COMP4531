@@ -6,9 +6,9 @@ SERVER_PORT = "5555"
 
 
 async def server() -> None:
-    context = await zmq.asyncio.Context()
-    socket = await context.socket(zmq.PULL)
-    await socket.bind(f"tcp://*:{SERVER_PORT}")
+    context = zmq.asyncio.Context()
+    socket = context.socket(zmq.PULL)
+    socket.bind(f"tcp://*:{SERVER_PORT}")
 
     while True:
         audio_clip = await socket.recv()
