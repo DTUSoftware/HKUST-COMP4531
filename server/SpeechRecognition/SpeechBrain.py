@@ -1,3 +1,5 @@
+import torchaudio
+import torchaudio.transforms as T
 from SpeechClass import SpeechClass
 from speechbrain.pretrained import EncoderDecoderASR
 
@@ -17,3 +19,20 @@ class SpeechBrain(SpeechClass):
     async def get_text(self, audio):
         transcription = self.asr_model.transcribe_file(audio)
         return transcription
+    
+    def preprocess_audio(self, audio_path: str) -> str:
+        """
+        Applies preprocessing steps to the audio file such as noise reduction, 
+        normalization, etc., and saves the processed file to a temporary location.
+        """
+        waveform, sample_rate = torchaudio.load(audio_path)
+        
+        # Noise reduction, normalization, etc.
+        # Example: Normalization
+        waveform = T.Vol(waveform)
+        
+        # Save the preprocessed audio to a temporary file
+        processed_audio_path = "temp_processed_audio.wav"
+        torchaudio.save(processed_audio_path, waveform, sample_rate)
+        
+        return processed_audio_path
