@@ -1,12 +1,19 @@
-import zmq
+import asyncio
+import aiomsg
 
 SERVER_PORT = "5555"
 
+
+async def server() -> None:
+    context = await aiomsg.Context()
+    socket = await context.socket(aiomsg.PULL)
+    await socket.bind(f"tcp://*:{SERVER_PORT}")
+
+    while True:
+        audio_clip = await socket.recv()
+
+        # Do something with the audio clip
+
+
 if __name__ == '__main__':
-    context = zmq.Context()
-    socket = context.socket(zmq.PULL)
-    socket.bind(f"tcp://*:{SERVER_PORT}")
-
-    audio_clip = socket.recv()
-
-    # Do something with the audio clip
+    asyncio.run(server())
