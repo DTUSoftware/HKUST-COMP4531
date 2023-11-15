@@ -1,12 +1,13 @@
 import asyncio
-import aiomsg
+import zmq
+import zmq.asyncio
 
 SERVER_PORT = "5555"
 
 
 async def server() -> None:
-    context = await aiomsg.Context()
-    socket = await context.socket(aiomsg.PULL)
+    context = await zmq.asyncio.Context()
+    socket = await context.socket(zmq.PULL)
     await socket.bind(f"tcp://*:{SERVER_PORT}")
 
     while True:
