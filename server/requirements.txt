@@ -3,3 +3,4 @@ speechbrain
 transformers
 torch==1.13.1
 torchaudio==0.13.1
+aiofiles
