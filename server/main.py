@@ -3,6 +3,8 @@ import aiomsg
 import aiofiles
 import os
 import uuid
+import zmq
+import zmq.asyncio
 
 # Comment this out when testing file sending!!
 # # Import models
@@ -17,9 +19,9 @@ SERVER_PORT = "5555"
 
 
 async def server() -> None:
-    context = await aiomsg.Context()
-    socket = await context.socket(aiomsg.PULL)
-    await socket.bind(f"tcp://*:{SERVER_PORT}")
+    context = zmq.asyncio.Context()
+    socket = context.socket(zmq.PULL)
+    socket.bind(f"tcp://*:{SERVER_PORT}")
 
     while True:
         audio_clip = await socket.recv()
