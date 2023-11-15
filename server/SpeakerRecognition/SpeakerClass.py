@@ -1,4 +1,7 @@
 from typing import Optional
+from pyannote.audio import Model
+from pyannote.core import Segment
+#"pyannote.audio" library seems to work for speech recognition
 
 
 class Speaker:
