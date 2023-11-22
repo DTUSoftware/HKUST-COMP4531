@@ -1,3 +1,5 @@
+import asyncio
+
 import torchaudio
 import torchaudio.transforms as T
 from SpeechClass import SpeechClass
@@ -45,6 +47,11 @@ class SpeechBrain(SpeechClass):
         return processed_audio_path
 
 
-if __name__ == '__main__':
+async def main():
     speech = SpeechBrain("wav2vec2")
-    print(speech.get_text("test.wav"))
+    text = await speech.get_text("test.wav")
+    print(text)
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
