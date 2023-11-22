@@ -24,6 +24,9 @@ def read_audio_file(path: str) -> bytes:
 async def main() -> None:
     try:
         audio_clip = read_audio_file(PATH_TO_AUDIO_CLIP)
+        # processing_type = "enroll"
+        # speaker_name = "scoopdewoop"
+        # success = await services.send_message_queue.send_audio_clip_to_server(audio_clip, processing_type=processing_type, speaker=speaker_name)
         success = await services.send_message_queue.send_audio_clip_to_server(audio_clip)
         logging.info(f"Success: {success}")
     except Exception as e:

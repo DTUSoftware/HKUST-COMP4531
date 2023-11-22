@@ -6,27 +6,24 @@ import asyncio
 
 
 class SpeechBrainSpeaker(Speaker):
-    def __init__(self, name: str):
+    def __init__(self, name: str, classifier=None, verification=None, audio_file=None, embeddings=None):
         super().__init__(name)
-        self.verification = None
-        self.audio_file = None
-        self.embeddings = None
-
-    def set_verification(self, verification: SpeakerRecognition):
         self.verification = verification
-
-    def set_audio_file(self, audio_file: str):
+        self.classifier = classifier
         self.audio_file = audio_file
-
-    def set_embeddings(self, embeddings):
         self.embeddings = embeddings
 
-    async def is_speaker(self, audio: str) -> bool:
+    async def is_speaker(self, audio: str, embedding=None) -> bool:
         """
         https://huggingface.co/speechbrain/spkrec-ecapa-voxceleb#perform-speaker-verification
         :param audio:
+        :param embedding:
         :return:
         """
+        if embedding:
+            if self.embeddings == embedding:
+                print(f"Speaker {self.name} recognized through embeddings")
+                return True
         score, prediction = self.verification.verify_files(self.audio_file, audio)
         print(f"Prediction for Speaker {self.name} is {prediction} ({score}) with files {self.audio_file} and {audio}")
         return prediction == 1
@@ -56,23 +53,18 @@ class SpeechBrain(SpeakerClass):
 
     async def enroll(self, audio: str, name: str) -> Speaker:
         embeddings = await self.get_embeddings(audio)
-        speaker = SpeechBrainSpeaker(name)
-        speaker.set_verification(self.verification)
-        speaker.set_audio_file(audio)
-        speaker.set_embeddings(embeddings)
+        speaker = SpeechBrainSpeaker(name=name, verification=self.verification, embeddings=embeddings, audio_file=audio,
+                                     classifier=self.classifier)
         self.speakers.append(speaker)
         return speaker
 
     async def recognize(self, audio: str) -> Optional[Speaker]:
         embeddings = await self.get_embeddings(audio)
         for speaker in self.speakers:
-            if speaker.embeddings == embeddings:
-                print(f"Speaker {speaker.name} recognized through embeddings")
+            if await speaker.is_speaker(audio, embedding=embeddings):
+                print(f"Speaker {speaker.name} recognized!")
                 return speaker
-        for speaker in self.speakers:
-            if await speaker.is_speaker(audio):
-                print(f"Speaker {speaker.name} recognized through verification")
-                return speaker
+        print(f"Speaker not recognized!")
         return None
 
 
