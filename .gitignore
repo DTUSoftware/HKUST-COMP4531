@@ -7,6 +7,20 @@ __pycache__/
 
 # big files
 *.wav
+*.mp3
+*.mp4
+*.mov
+*.avi
+*.mpg
+*.mpeg
+*.m4a
+*.bin
+
+# ai folders
+audio_cache
+model_checkpoints
+pretrained_models
+
 
 # C extensions
 *.so
