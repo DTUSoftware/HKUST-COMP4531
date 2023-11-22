@@ -2,6 +2,7 @@ from typing import Optional
 from SpeakerClass import SpeakerClass, Speaker
 import torchaudio
 from speechbrain.pretrained import EncoderClassifier, SpeakerRecognition
+import asyncio
 
 
 class SpeechBrainSpeaker(Speaker):
@@ -73,3 +74,11 @@ class SpeechBrain(SpeakerClass):
                 print(f"Speaker {speaker.name} recognized through verification")
                 return speaker
         return None
+
+
+async def main():
+    pass
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
