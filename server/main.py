@@ -23,22 +23,20 @@ async def server() -> None:
     socket = context.socket(zmq.PULL)
     socket.bind(f"tcp://*:{SERVER_PORT}")
 
+    print(f"Server listening on port {SERVER_PORT}")
+
     while True:
         audio_clip = await socket.recv()
+        print(f"Received audio clip of length {len(audio_clip)}")
 
         audio_file = await save_audio(audio_clip)
-
-        # Send status message back to client
-        await socket.send(f"Processing audio as {audio_file}")
+        print(f"Saved audio clip to {audio_file}")
 
         # Comment this out when testing file sending!!
         # # Process audio
         # text, speaker = await process_audio(audio_file)
         # print(f"Text: {text}")
         # print(f"Speaker: {speaker}")
-        #
-        # # Send text back to client
-        # await socket.send(text)
 
 
 async def save_audio(audio_clip) -> str:
@@ -75,4 +73,10 @@ async def save_audio(audio_clip) -> str:
 #     return text, speaker_person
 
 if __name__ == '__main__':
+    # RuntimeWarning: Proactor event loop does not implement add_reader family of methods required for zmq.
+    # Registering an additional selector thread for add_reader support via tornado.
+    # Use `asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())` to avoid this warning.
+    if os.name == "nt":
+        from asyncio import WindowsSelectorEventLoopPolicy
+        asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
     asyncio.run(server())
