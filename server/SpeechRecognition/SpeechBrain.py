@@ -25,14 +25,20 @@ class SpeechBrain(SpeechClass):
         Applies preprocessing steps to the audio file such as noise reduction, 
         normalization, etc., and saves the processed file to a temporary location.
         """
+
         waveform, sample_rate = torchaudio.load(audio_path)
-        
-        # Noise reduction, normalization, etc.
-        # Example: Normalization
-        waveform = T.Vol(waveform)
-        
+
+        # Setting the low-frequency cutoff and high-frequency cutoff of a bandpass filter
+        low_cutoff_freq = 100 #low-frequency off 100Hz
+        high_cutoff_freq = 8000 #higt-frequency off 8000Hz
+
+        bandpass_filter = T.BandpassBiquad(sample_rate, low_cutoff_freq, high_cutoff_freq)
+
+        waveform_filtered = bandpass_filter(waveform)
+
         # Save the preprocessed audio to a temporary file
         processed_audio_path = "temp_processed_audio.wav"
-        torchaudio.save(processed_audio_path, waveform, sample_rate)
+        torchaudio.save(processed_audio_path, waveform_filtered, sample_rate)
+    
         
         return processed_audio_path
