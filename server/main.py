@@ -6,7 +6,6 @@ import zmq
 import zmq.asyncio
 import wave
 
-# Comment this out when testing file sending!!
 # Import models
 from SpeechRecognition.SpeechBrain import SpeechBrain as Speech
 from SpeakerRecognition.SpeechBrain import SpeechBrain as Speaker
@@ -34,7 +33,7 @@ async def server() -> None:
             print(f"Invalid message {message}")
             continue
 
-        audio_clip = message.split(b':')[-1]
+        audio_clip = b':'.join(message.split(b':')[2:])
         print(f"Received audio clip of length {len(audio_clip)}")
 
         audio_file = await save_audio(audio_clip)
@@ -42,15 +41,26 @@ async def server() -> None:
 
         processing_type = message.split(b':')[0].decode("utf-8")
         print(f"Processing audio using type = {processing_type}...")
+        data = message.split(b':')[1].split(b':')[0].decode("utf-8")
 
-        # Comment this out when testing file sending!!
         if processing_type == "enroll":
-            speaker_name = message.split(b':')[1].split(b':')[0].decode("utf-8")
-            print(f"Enrolling speaker {speaker_name}...")
+            print(f"Enrolling speaker {data}...")
+            speaker_person = await enroll_speaker(audio_file, data)
+            if not speaker_person:
+                print(f"Failed to enroll speaker {data}!")
+            else:
+                print(f"Successfully enrolled speaker {speaker_person.name}!")
         else:
             print(f"Processing audio...")
             result = await process_audio(audio_file)
             print(f"Result: {result}")
+
+            # Save the result to a file
+            if not os.path.exists("results"):
+                os.mkdir("results")
+
+            async with aiofiles.open(f"results/{str(uuid.uuid4())}.txt", "w") as f:
+                await f.write(result)
 
 
 async def save_audio(audio_clip, is_segment=False, audio_id=str(uuid.uuid4())) -> str:
