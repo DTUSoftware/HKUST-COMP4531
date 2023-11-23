@@ -1,36 +1,47 @@
+import os
+import uuid
 from typing import Optional
+import aiofiles
 from SpeakerClass import SpeakerClass, Speaker
 import torchaudio
+import torch
 from speechbrain.pretrained import EncoderClassifier, SpeakerRecognition
 import asyncio
+import json
 
 
 class SpeechBrainSpeaker(Speaker):
-    def __init__(self, name: str, classifier=None, verification=None, audio_file=None, embeddings=None):
+    def __init__(self, name: str, speaker_id=str(uuid.uuid4()), classifier=None, verification=None, audio_file=None, embeddings=None):
         super().__init__(name)
+        self.speaker_id = speaker_id
         self.verification = verification
         self.classifier = classifier
         self.audio_file = audio_file
         self.embeddings = embeddings
 
-    async def is_speaker(self, audio: str, embedding=None) -> bool:
+        self.similarity = torch.nn.CosineSimilarity(dim=-1, eps=1e-6)
+
+    async def is_speaker(self, audio: str, embeddings=None, threshold=0.25) -> bool:
         """
         https://huggingface.co/speechbrain/spkrec-ecapa-voxceleb#perform-speaker-verification
-        :param audio:
-        :param embedding:
+        :param audio: The audio to verify
+        :param embeddings: The embeddings to use for verification
+        :param threshold: The threshold for the similarity score
         :return:
         """
-        if embedding is not None and self.embeddings is not None:
-            print(f"Checking embeddings for speaker {self.name}")
-            print(f"Speaker embeddings: {self.embeddings}")
-            print(f"Embeddings to check: {embedding}")
-            if (self.embeddings == embedding).all():
-                print(f"Speaker {self.name} recognized through embeddings")
-                return True
+        # If we have embeddings, verify using embeddings manually
+        if embeddings is not None and self.embeddings is not None:
+            print(f"Checking using embeddings for speaker {self.name}")
+            score = self.similarity(self.embeddings, embeddings)
+            prediction = score > threshold
+            print(f"Prediction for Speaker {self.name} is {prediction} ({score}) with embeddings {self.embeddings} and {embeddings}")
+            return prediction == 1
+        else:
+            print("No embeddings provided, verifying audio files automatically")
 
-        score, prediction = self.verification.verify_files(self.audio_file, audio)
-        print(f"Prediction for Speaker {self.name} is {prediction} ({score}) with files {self.audio_file} and {audio}")
-        return prediction == 1
+            score, prediction = self.verification.verify_files(self.audio_file, audio)
+            print(f"Prediction for Speaker {self.name} is {prediction} ({score}) with files {self.audio_file} and {audio}")
+            return prediction == 1
 
 
 class SpeechBrain(SpeakerClass):
@@ -68,17 +79,71 @@ class SpeechBrain(SpeakerClass):
     async def recognize(self, audio: str) -> Optional[Speaker]:
         embeddings = await self.get_embeddings(audio)
         for speaker in self.speakers:
-            if await speaker.is_speaker(audio, embedding=embeddings):
+            if await speaker.is_speaker(audio, embeddings=embeddings):
                 print(f"Speaker {speaker.name} recognized!")
                 return speaker
         print(f"Speaker not recognized!")
         return None
 
+    async def save(self):
+        """
+        Saves the current speakers and their embeddings to a file, so that we can load them later
+        :return:
+        """
+        # Make a speakers directory
+        if not os.path.exists("speakers"):
+            os.mkdir("speakers")
+
+        async with aiofiles.open("speakers/speakers.json", "w") as f:
+            speaker_objects = []
+            for speaker in self.speakers:
+                # Check if current audio file is in speakers directory
+                if not os.path.exists(f"speakers/{speaker.speaker_id}.wav"):
+                    # Copy audio file to speakers directory
+                    async with aiofiles.open(speaker.audio_file, "rb") as f2:
+                        audio_clip = await f2.read()
+                        async with aiofiles.open(f"speakers/{speaker.speaker_id}.wav", "wb") as f3:
+                            await f3.write(audio_clip)
+
+                speaker_objects.append({
+                    "name": speaker.name,
+                    "speaker_id": speaker.speaker_id,
+                    "embeddings": speaker.embeddings.tolist(),
+                    "audio_file": f"speakers/{speaker.speaker_id}.wav"
+                })
+
+            await f.write(json.dumps(self.speakers))
+
+    async def load(self):
+        """
+        Loads the speakers from a file
+        :return:
+        """
+        # Check if speakers file exists
+        if os.path.exists("speakers/speakers.json"):
+            async with aiofiles.open("speakers/speakers.json", "r") as f:
+                speakers = json.loads(await f.read())
+                for speaker in speakers:
+                    speaker_object = SpeechBrainSpeaker(name=speaker["name"], speaker_id=speaker["speaker_id"],
+                                                        embeddings=torch.tensor(speaker["embeddings"]),
+                                                        audio_file=speaker["audio_file"])
+                    self.speakers.append(speaker_object)
+            return True
+        else:
+            print("No speakers file found, skipping loading speakers")
+        return False
+
 
 async def main():
     speech_brain = SpeechBrain()
-    speaker_marcus = await speech_brain.enroll("Marcus1.wav", "marcus1")
-    speaker_mads = await speech_brain.enroll("Mads1.wav", "mads")
+    if await speech_brain.load():
+        print("Loaded speakers!")
+    else:
+        print("No speakers found, skipping loading speakers")
+        speaker_marcus = await speech_brain.enroll("Marcus1.wav", "Marcus")
+        speaker_mads = await speech_brain.enroll("Mads1.wav", "Mads")
+        print("Enrolled speakers! Saving...")
+        await speech_brain.save()
     who_is_it = await speech_brain.recognize("Mads2.wav")
     who_is_it = await speech_brain.recognize("neither.wav")
 

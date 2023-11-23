@@ -83,7 +83,15 @@ async def enroll_speaker(audio_file: str, speaker_name: str):
     global speaker
     if not speaker:
         speaker = Speaker()
+        # Load the speakers from file, so we don't accidentally delete all speakers if the first thing we do is enroll
+        await speaker.load()
     speaker_person = await speaker.enroll(audio_file, speaker_name)
+    if not speaker_person:
+        print(f"Failed to enroll speaker {speaker_name}!")
+    else:
+        print(f"Successfully enrolled speaker {speaker_person.name}!")
+        print("Saving speakers...")
+        await speaker.save()
     return speaker_person
 
 
@@ -127,6 +135,8 @@ async def process_audio(audio_file: str):
     global speaker
     if not speaker:
         speaker = Speaker()
+        # Load the speakers from file
+        await speaker.load()
 
     for i in range(len(segments)):
         segment = segments[i]
