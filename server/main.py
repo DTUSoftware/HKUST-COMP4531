@@ -18,7 +18,7 @@ speech: Optional[Speech] = None
 speaker: Optional[Speaker] = None
 
 SERVER_PORT = "5555"
-SECONDS_PER_AUDIO_SEGMENT = 5
+SECONDS_PER_AUDIO_SEGMENT = 1
 
 
 async def server() -> None:
@@ -66,7 +66,7 @@ async def server() -> None:
                 await f.write(result)
 
 
-async def save_audio(audio_clip: Optional[AudioSegment, bytes], is_segment=False, audio_id=None) -> str:
+async def save_audio(audio_clip, is_segment=False, audio_id=None) -> str:
     # If audio directory does not exist, create it
     if not os.path.exists("audio_cache"):
         os.mkdir("audio_cache")
@@ -133,7 +133,7 @@ async def process_audio(audio_file: str):
     # Split the audio file into segments
     segments = []
     async with aiofiles.open(audio_file, "rb") as f:
-        for i in range(0, math.floor(audio_duration*1000), SECONDS_PER_AUDIO_SEGMENT*1000):
+        for i in range(0, math.floor(audio_duration*1000), math.floor(SECONDS_PER_AUDIO_SEGMENT*1000)):
             segment = audio_segment[i:i+SECONDS_PER_AUDIO_SEGMENT*1000]
             # Save each segment to a file
             segment_file = await save_audio(segment, is_segment=True, audio_id=f"{file_id}-{i}")
@@ -152,14 +152,19 @@ async def process_audio(audio_file: str):
         # Load the speakers from file
         await speaker.load()
 
+    shift = 0
     for i in range(len(segments)):
-        segment = segments[i]
-        segments[i]["speaker"] = await speaker.recognize(segment["file"])
+        current_index = i + shift
+
+        segment = segments[current_index]
+        segments[current_index]["speaker"] = await speaker.recognize(segment["file"])
 
         # If this speaker is the same as last segment, then we can merge the segments
-        if i > 0 and segments[i]["speaker"] == segments[i - 1]["speaker"]:
-            print(f"Speaker in segment {i} is the same as segment {i - 1}! Merging segments...")
-            segments[i - 1]["end"] = segments[i]["end"]
+        print(f"Speaker in segment {current_index}: {segments[current_index]['speaker']}")
+        if current_index > 0: print(f"Speaker in segment {current_index-1}: {segments[current_index-1]['speaker']}")
+        if current_index > 0 and segments[current_index]["speaker"] == segments[current_index - 1]["speaker"]:
+            print(f"Speaker in segment {current_index} is the same as segment {current_index - 1}! Merging segments...")
+            segments[current_index - 1]["end"] = segments[current_index]["end"]
 
             # Load both audio files into memory and merge them into one file
             # async with aiofiles.open(segments[i - 1]["file"], "rb") as f1, aiofiles.open(segments[i]["file"], "rb") as f2:
@@ -171,17 +176,17 @@ async def process_audio(audio_file: str):
             #     segments[i - 1]["file"] = merged_audio_file
 
             # use pydub to merge the audio files
-            audio1_segment = AudioSegment.from_wav(segments[i - 1]["file"])
-            audio2_segment = AudioSegment.from_wav(segments[i]["file"])
+            audio1_segment = AudioSegment.from_wav(segments[current_index - 1]["file"])
+            audio2_segment = AudioSegment.from_wav(segments[current_index]["file"])
 
             merged_audio = audio1_segment + audio2_segment
-            merged_audio_file = await save_audio(merged_audio, is_segment=True, audio_id=f"{file_id}-{i - 1}")
-            segments[i - 1]["file"] = merged_audio_file
+            merged_audio_file = await save_audio(merged_audio, is_segment=True, audio_id=f"{file_id}-{current_index - 1}")
+            segments[current_index - 1]["file"] = merged_audio_file
 
-            segments.pop(i)
+            segments.pop(current_index)
 
             # Since we merged the segments, we need to go back one index
-            i -= 1
+            shift -= 1
 
     # Now, time to parse the audio file segments to get the text
     print("Finished processing audio file segments. Getting text from each segment...")

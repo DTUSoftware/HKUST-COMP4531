@@ -1,7 +1,7 @@
 import zmq
 import zmq.asyncio
 
-SERVER_IP = "localhost"
+SERVER_IP = "dtu-server.duckdns.org"
 SERVER_PORT = "5555"
 
 
