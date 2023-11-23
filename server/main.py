@@ -162,12 +162,21 @@ async def process_audio(audio_file: str):
             segments[i - 1]["end"] = segments[i]["end"]
 
             # Load both audio files into memory and merge them into one file
-            async with aiofiles.open(segments[i - 1]["file"], "rb") as f1, aiofiles.open(segments[i]["file"], "rb") as f2:
-                audio1 = await f1.read()
-                audio2 = await f2.read()
-                merged_audio = audio1 + audio2
-                merged_audio_file = await save_audio(merged_audio, is_segment=True, audio_id=f"{file_id}-{i - 1}")
-                segments[i - 1]["file"] = merged_audio_file
+            # async with aiofiles.open(segments[i - 1]["file"], "rb") as f1, aiofiles.open(segments[i]["file"], "rb") as f2:
+            #     audio1 = await f1.read()
+            #     audio2 = await f2.read()
+            #
+            #     merged_audio = audio1 + audio2
+            #     merged_audio_file = await save_audio(merged_audio, is_segment=True, audio_id=f"{file_id}-{i - 1}")
+            #     segments[i - 1]["file"] = merged_audio_file
+
+            # use pydub to merge the audio files
+            audio1_segment = AudioSegment.from_wav(segments[i - 1]["file"])
+            audio2_segment = AudioSegment.from_wav(segments[i]["file"])
+
+            merged_audio = audio1_segment + audio2_segment
+            merged_audio_file = await save_audio(merged_audio, is_segment=True, audio_id=f"{file_id}-{i - 1}")
+            segments[i - 1]["file"] = merged_audio_file
 
             segments.pop(i)
 
