@@ -68,6 +68,10 @@ async def main() -> None:
                 stop_recording()
                 recording_thread.join()
                 print("Recording stopped.")
+
+                audio_clip = read_audio_file(filename)
+                success = await services.send_message_queue.send_audio_clip_to_server(audio_clip, processing_type="meeting")
+                logging.info(f"Success: {success}")
             elif choice == "4":
                 print("Exiting...")
                 exit(0)
