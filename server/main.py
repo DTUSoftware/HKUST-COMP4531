@@ -1,4 +1,5 @@
 import asyncio
+import math
 from typing import Optional
 import aiofiles
 import os
@@ -6,6 +7,7 @@ import uuid
 import zmq
 import zmq.asyncio
 import wave
+from pydub import AudioSegment
 
 # Import models
 from SpeechRecognition.SpeechBrain import SpeechBrain as Speech
@@ -64,7 +66,7 @@ async def server() -> None:
                 await f.write(result)
 
 
-async def save_audio(audio_clip, is_segment=False, audio_id=None) -> str:
+async def save_audio(audio_clip: Optional[AudioSegment, bytes], is_segment=False, audio_id=None) -> str:
     # If audio directory does not exist, create it
     if not os.path.exists("audio_cache"):
         os.mkdir("audio_cache")
@@ -77,10 +79,16 @@ async def save_audio(audio_clip, is_segment=False, audio_id=None) -> str:
 
     # Save the audio clip to a file
     filename = f"audio_cache{'/segments' if is_segment else ''}/{audio_id}.wav"
-    async with aiofiles.open(filename, "wb") as f:
-        await f.write(audio_clip)
+    if isinstance(audio_clip, bytes):
+        async with aiofiles.open(filename, "wb") as f:
+            await f.write(audio_clip)
 
+            return filename
+    elif isinstance(audio_clip, AudioSegment):
+        audio_clip.export(filename, format="wav")
         return filename
+    else:
+        raise TypeError(f"Invalid audio clip type {type(audio_clip)}, expected Bytes or AudioSegment")
 
 
 async def enroll_speaker(audio_file: str, speaker_name: str):
@@ -120,11 +128,13 @@ async def process_audio(audio_file: str):
           f"- Sample width: {sample_width}\n"
           f"- Duration: {audio_duration} seconds\n")
 
+    audio_segment = AudioSegment.from_wav(audio_file)
+
     # Split the audio file into segments
     segments = []
     async with aiofiles.open(audio_file, "rb") as f:
-        for i in range(0, num_frames, frame_rate * SECONDS_PER_AUDIO_SEGMENT):
-            segment = await f.read(frame_rate * SECONDS_PER_AUDIO_SEGMENT)
+        for i in range(0, math.floor(audio_duration*1000), SECONDS_PER_AUDIO_SEGMENT*1000):
+            segment = audio_segment[i:i+SECONDS_PER_AUDIO_SEGMENT*1000]
             # Save each segment to a file
             segment_file = await save_audio(segment, is_segment=True, audio_id=f"{file_id}-{i}")
 
