@@ -2,7 +2,7 @@ import asyncio
 
 import torchaudio
 import torchaudio.transforms as T
-from SpeechClass import SpeechClass
+from .SpeechClass import SpeechClass
 from speechbrain.pretrained import EncoderDecoderASR
 
 

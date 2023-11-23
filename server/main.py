@@ -1,4 +1,5 @@
 import asyncio
+from typing import Optional
 import aiofiles
 import os
 import uuid
@@ -11,8 +12,8 @@ from SpeechRecognition.SpeechBrain import SpeechBrain as Speech
 from SpeakerRecognition.SpeechBrain import SpeechBrain as Speaker
 
 # Initialize models
-speech: Speech
-speaker: Speaker
+speech: Optional[Speech] = None
+speaker: Optional[Speaker] = None
 
 SERVER_PORT = "5555"
 SECONDS_PER_AUDIO_SEGMENT = 5
@@ -63,13 +64,16 @@ async def server() -> None:
                 await f.write(result)
 
 
-async def save_audio(audio_clip, is_segment=False, audio_id=str(uuid.uuid4())) -> str:
+async def save_audio(audio_clip, is_segment=False, audio_id=None) -> str:
     # If audio directory does not exist, create it
     if not os.path.exists("audio_cache"):
         os.mkdir("audio_cache")
     if is_segment:
         if not os.path.exists("audio_cache/segments"):
             os.mkdir("audio_cache/segments")
+
+    if not audio_id:
+        audio_id = str(uuid.uuid4())
 
     # Save the audio clip to a file
     filename = f"audio_cache{'/segments' if is_segment else ''}/{audio_id}.wav"

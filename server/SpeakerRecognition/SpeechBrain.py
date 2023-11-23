@@ -2,8 +2,7 @@ import os
 import uuid
 from typing import Optional
 import aiofiles
-from SpeakerClass import SpeakerClass, Speaker
-import torchaudio
+from .SpeakerClass import SpeakerClass, Speaker
 import torch
 from speechbrain.pretrained import EncoderClassifier, SpeakerRecognition
 import asyncio
@@ -11,9 +10,9 @@ import json
 
 
 class SpeechBrainSpeaker(Speaker):
-    def __init__(self, name: str, speaker_id=str(uuid.uuid4()), classifier=None, verification=None, audio_file=None, embeddings=None):
+    def __init__(self, name: str, speaker_id=None, classifier=None, verification=None, audio_file=None, embeddings=None):
         super().__init__(name)
-        self.speaker_id = speaker_id
+        self.speaker_id = speaker_id if speaker_id else str(uuid.uuid4())
         self.verification = verification
         self.classifier = classifier
         self.audio_file = audio_file
@@ -34,7 +33,7 @@ class SpeechBrainSpeaker(Speaker):
             print(f"Checking using embeddings for speaker {self.name}")
             score = self.similarity(self.embeddings, embeddings)
             prediction = score > threshold
-            print(f"Prediction for Speaker {self.name} is {prediction} ({score}) with embeddings {self.embeddings} and {embeddings}")
+            print(f"Prediction for Speaker {self.name} is {prediction} ({score}) with embeddings.")
             return prediction == 1
         else:
             print("No embeddings provided, verifying audio files automatically")
@@ -63,14 +62,16 @@ class SpeechBrain(SpeakerClass):
         :param audio:
         :return:
         """
-        signal, fs = torchaudio.load(audio)
-        embeddings = self.classifier.encode_batch(signal)
+        waveform = self.classifier.load_audio(audio)
+        batch = waveform.unsqueeze(0)
+        # signal, fs = torchaudio.load(audio)
+        embeddings = self.classifier.encode_batch(batch)
         return embeddings
 
     async def enroll(self, audio: str, name: str) -> Speaker:
         # The verify already uses embeddings so we can just skip this step - if we want to do it manually in the future
         # we can bring it back
-        embeddings = None  # await self.get_embeddings(audio)
+        embeddings = await self.get_embeddings(audio)
         speaker = SpeechBrainSpeaker(name=name, verification=self.verification, embeddings=embeddings, audio_file=audio,
                                      classifier=self.classifier)
         self.speakers.append(speaker)
@@ -97,6 +98,10 @@ class SpeechBrain(SpeakerClass):
         async with aiofiles.open("speakers/speakers.json", "w") as f:
             speaker_objects = []
             for speaker in self.speakers:
+                if speaker.embeddings is None or speaker.audio_file is None:
+                    print(f"Skipping speaker {speaker.name} because it has no embeddings or audio file")
+                    continue
+
                 # Check if current audio file is in speakers directory
                 if not os.path.exists(f"speakers/{speaker.speaker_id}.wav"):
                     # Copy audio file to speakers directory
@@ -112,7 +117,7 @@ class SpeechBrain(SpeakerClass):
                     "audio_file": f"speakers/{speaker.speaker_id}.wav"
                 })
 
-            await f.write(json.dumps(self.speakers))
+            await f.write(json.dumps(speaker_objects))
 
     async def load(self):
         """
@@ -122,7 +127,11 @@ class SpeechBrain(SpeakerClass):
         # Check if speakers file exists
         if os.path.exists("speakers/speakers.json"):
             async with aiofiles.open("speakers/speakers.json", "r") as f:
-                speakers = json.loads(await f.read())
+                try:
+                    speakers = json.loads(await f.read())
+                except json.JSONDecodeError:
+                    print("Error loading speakers file, skipping loading speakers")
+                    return False
                 for speaker in speakers:
                     speaker_object = SpeechBrainSpeaker(name=speaker["name"], speaker_id=speaker["speaker_id"],
                                                         embeddings=torch.tensor(speaker["embeddings"]),
@@ -139,7 +148,7 @@ async def main():
     if await speech_brain.load():
         print("Loaded speakers!")
     else:
-        print("No speakers found, skipping loading speakers")
+        print("No speakers found, creating new speakers")
         speaker_marcus = await speech_brain.enroll("Marcus1.wav", "Marcus")
         speaker_mads = await speech_brain.enroll("Mads1.wav", "Mads")
         print("Enrolled speakers! Saving...")
