@@ -1,3 +1,7 @@
+# Custom
+speakers/speakers.json
+speakers/*.wav
+
 .idea/
 
 # Mads's macbook
