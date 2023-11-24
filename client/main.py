@@ -12,6 +12,7 @@ import datetime
 logging.basicConfig(level=logging.INFO)
 
 # Set default sound devices
+sd.default.dtype = "int16"
 # First for raspberry pi
 if os.name == "posix":
     sd.default.device = "ac108"
@@ -100,14 +101,14 @@ async def main() -> None:
                     success = await services.send_message_queue.send_audio_clip_to_server(audio_clip,
                                                                                           processing_type="enroll",
                                                                                           speaker=speaker_name)
-                    logging.info(f"Success: {success}")
+                    print(f"Success: {success}")
                 else:
                     print("Recording discarded.")
             elif choice == "2":
                 audio_file = input("Enter path to audio file (wav): ").strip()
                 audio_clip = read_audio_file(audio_file)
                 success = await services.send_message_queue.send_audio_clip_to_server(audio_clip)
-                logging.info(f"Success: {success}")
+                print(f"Success: {success}")
             elif choice == "3":
                 # Check if recordings directory exists, if not, create it
                 if not os.path.exists("recordings"):
@@ -128,7 +129,7 @@ async def main() -> None:
                     audio_clip = read_audio_file(filename)
                     success = await services.send_message_queue.send_audio_clip_to_server(audio_clip,
                                                                                           processing_type="meeting")
-                    logging.info(f"Success: {success}")
+                    print(f"Success: {success}")
                 else:
                     print("Recording discarded.")
             elif choice == "4":
