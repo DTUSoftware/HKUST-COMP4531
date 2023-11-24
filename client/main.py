@@ -6,12 +6,25 @@ import sounddevice as sd
 import threading
 import numpy as np
 from scipy.io import wavfile
+import datetime
 
-PATH_TO_AUDIO_CLIP = "test-recordings/testmeeting.wav"
 # Introducing logging to detect exceptions
 logging.basicConfig(level=logging.INFO)
 
+# Set default sound devices
+# First for raspberry pi
+if os.name == "posix":
+    sd.default.device = "ac108"
+elif os.name == "nt":
+    pass
+    # sd.default.device = 0
+elif os.name == "mac":
+    pass
+    # sd.default.device = "Built-in Microphone"
+
 is_recording = False
+
+
 def read_audio_file(path: str) -> bytes:
     try:
         with open(path, "rb") as f:
@@ -24,19 +37,33 @@ def read_audio_file(path: str) -> bytes:
         logging.error(f"An error occurred while reading the audio file: {e}")
         raise
 
-def record_audio(fs, filename):
+
+# The system is trained with recordings sampled at 16kHz (single channel)
+def record_audio(filename, fs=16000, channels=1):
     global is_recording
     is_recording = True
-    print("Recording... Press Enter to stop.")
-    with sd.InputStream(samplerate=fs, channels=2) as stream:
+    with sd.InputStream(samplerate=fs, channels=channels) as stream:
         audio_data = []
         while is_recording:
             data, overflowed = stream.read(fs)
             audio_data.append(data)
         wavfile.write(filename, fs, np.concatenate(audio_data, axis=0))
-def stop_recording():
+
+
+async def stop_recording():
     global is_recording
-    input()
+
+    # Wait for recording to start
+    print("Waiting for recording to start...")
+    i = 0
+    while not is_recording:
+        await asyncio.sleep(1)
+        i += 1
+        if i > 10:
+            print("Recording did not start, exiting...")
+            exit(1)
+
+    input("Press Enter to stop recording...")
     is_recording = False
 
 
@@ -52,26 +79,58 @@ async def main() -> None:
         try:
             if choice == "1":
                 speaker_name = input("Enter the name of the speaker: ")
-                audio_clip = read_audio_file(PATH_TO_AUDIO_CLIP)
-                success = await services.send_message_queue.send_audio_clip_to_server(audio_clip, processing_type="enroll", speaker=speaker_name)
-                logging.info(f"Success: {success}")
-            elif choice == "2":
-                audio_clip = read_audio_file(PATH_TO_AUDIO_CLIP)
-                success = await services.send_message_queue.send_audio_clip_to_server(audio_clip)
-                logging.info(f"Success: {success}")
-            elif choice == "3":
-                print("Recording audio until input is given...")
-                fs = 44100
-                filename = "meeting.wav"
-                recording_thread = threading.Thread(target=record_audio, args=(fs, filename))
+
+                # Check if recordings directory exists, if not, create it
+                if not os.path.exists("recordings"):
+                    os.mkdir("recordings")
+
+                # Make filename from current time
+                filename = f"recordings/enroll-{speaker_name}-{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.wav"
+
+                recording_thread = threading.Thread(target=record_audio, args=(filename,))
+                input("Press Enter to start recording...")
                 recording_thread.start()
-                stop_recording()
+                await stop_recording()
                 recording_thread.join()
                 print("Recording stopped.")
 
-                audio_clip = read_audio_file(filename)
-                success = await services.send_message_queue.send_audio_clip_to_server(audio_clip, processing_type="meeting")
+                submit = input("Do you want to submit the recording? (Y/n): ")
+                if not submit.lower().startswith("n"):
+                    audio_clip = read_audio_file(filename)
+                    success = await services.send_message_queue.send_audio_clip_to_server(audio_clip,
+                                                                                          processing_type="enroll",
+                                                                                          speaker=speaker_name)
+                    logging.info(f"Success: {success}")
+                else:
+                    print("Recording discarded.")
+            elif choice == "2":
+                audio_file = input("Enter path to audio file (wav): ").strip()
+                audio_clip = read_audio_file(audio_file)
+                success = await services.send_message_queue.send_audio_clip_to_server(audio_clip)
                 logging.info(f"Success: {success}")
+            elif choice == "3":
+                # Check if recordings directory exists, if not, create it
+                if not os.path.exists("recordings"):
+                    os.mkdir("recordings")
+
+                # Make filename from current time
+                filename = f"recordings/meeting-{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.wav"
+
+                recording_thread = threading.Thread(target=record_audio, args=(filename,))
+                input("Press Enter to start recording...")
+                recording_thread.start()
+                await stop_recording()
+                recording_thread.join()
+                print("Recording stopped.")
+
+                submit = input("Do you want to submit the recording? (Y/n): ")
+                if not submit.lower().startswith("n"):
+                    audio_clip = read_audio_file(filename)
+                    success = await services.send_message_queue.send_audio_clip_to_server(audio_clip,
+                                                                                          processing_type="meeting")
+                    logging.info(f"Success: {success}")
+                else:
+                    print("Recording discarded.")
             elif choice == "4":
                 print("Exiting...")
                 exit(0)
@@ -85,5 +144,6 @@ if __name__ == '__main__':
     # Use `asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())` to avoid this warning.
     if os.name == "nt":
         from asyncio import WindowsSelectorEventLoopPolicy
+
         asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
     asyncio.run(main())
