@@ -10,7 +10,8 @@ import json
 
 
 class SpeechBrainSpeaker(Speaker):
-    def __init__(self, name: str, speaker_id=None, classifier=None, verification=None, audio_file=None, embeddings=None):
+    def __init__(self, name: str, speaker_id=None, classifier=None, verification=None, audio_file=None,
+                 embeddings=None):
         super().__init__(name)
         self.speaker_id = speaker_id if speaker_id else str(uuid.uuid4())
         self.verification = verification
@@ -39,7 +40,8 @@ class SpeechBrainSpeaker(Speaker):
             print("No embeddings provided, verifying audio files automatically")
 
             score, prediction = self.verification.verify_files(self.audio_file, audio)
-            print(f"Prediction for Speaker {self.name} is {prediction} ({score}) with files {self.audio_file} and {audio}")
+            print(
+                f"Prediction for Speaker {self.name} is {prediction} ({score}) with files {self.audio_file} and {audio}")
             return prediction == 1
 
 

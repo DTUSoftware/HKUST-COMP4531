@@ -133,8 +133,8 @@ async def process_audio(audio_file: str):
     # Split the audio file into segments
     segments = []
     async with aiofiles.open(audio_file, "rb") as f:
-        for i in range(0, math.floor(audio_duration*1000), math.floor(SECONDS_PER_AUDIO_SEGMENT*1000)):
-            segment = audio_segment[i:i+SECONDS_PER_AUDIO_SEGMENT*1000]
+        for i in range(0, math.floor(audio_duration * 1000), math.floor(SECONDS_PER_AUDIO_SEGMENT * 1000)):
+            segment = audio_segment[i:i + SECONDS_PER_AUDIO_SEGMENT * 1000]
             # Save each segment to a file
             segment_file = await save_audio(segment, is_segment=True, audio_id=f"{file_id}-{i}")
 
@@ -161,7 +161,7 @@ async def process_audio(audio_file: str):
 
         # If this speaker is the same as last segment, then we can merge the segments
         print(f"Speaker in segment {current_index}: {segments[current_index]['speaker']}")
-        if current_index > 0: print(f"Speaker in segment {current_index-1}: {segments[current_index-1]['speaker']}")
+        if current_index > 0: print(f"Speaker in segment {current_index - 1}: {segments[current_index - 1]['speaker']}")
         if current_index > 0 and segments[current_index]["speaker"] == segments[current_index - 1]["speaker"]:
             print(f"Speaker in segment {current_index} is the same as segment {current_index - 1}! Merging segments...")
             segments[current_index - 1]["end"] = segments[current_index]["end"]
@@ -180,7 +180,8 @@ async def process_audio(audio_file: str):
             audio2_segment = AudioSegment.from_wav(segments[current_index]["file"])
 
             merged_audio = audio1_segment + audio2_segment
-            merged_audio_file = await save_audio(merged_audio, is_segment=True, audio_id=f"{file_id}-{current_index - 1}")
+            merged_audio_file = await save_audio(merged_audio, is_segment=True,
+                                                 audio_id=f"{file_id}-{current_index - 1}")
             segments[current_index - 1]["file"] = merged_audio_file
 
             segments.pop(current_index)
@@ -210,11 +211,13 @@ async def process_audio(audio_file: str):
 
     return text
 
+
 if __name__ == '__main__':
     # RuntimeWarning: Proactor event loop does not implement add_reader family of methods required for zmq.
     # Registering an additional selector thread for add_reader support via tornado.
     # Use `asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())` to avoid this warning.
     if os.name == "nt":
         from asyncio import WindowsSelectorEventLoopPolicy
+
         asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
     asyncio.run(server())
