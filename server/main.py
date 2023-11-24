@@ -18,7 +18,7 @@ speech: Optional[Speech] = None
 speaker: Optional[Speaker] = None
 
 SERVER_PORT = "5555"
-SECONDS_PER_AUDIO_SEGMENT = 1
+SECONDS_PER_AUDIO_SEGMENT = 2
 
 
 async def server() -> None:
@@ -56,7 +56,7 @@ async def server() -> None:
         else:
             print(f"Processing audio...")
             result = await process_audio(audio_file)
-            print(f"Result: {result}")
+            print(f"Result:\n{result}")
 
             # Save the result to a file
             if not os.path.exists("results"):
