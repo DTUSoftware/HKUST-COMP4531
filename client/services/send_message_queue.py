@@ -20,9 +20,12 @@ async def send_audio_clip_to_server(audio_clip, processing_type="meeting", speak
         print(f"Connecting to server at {SERVER_IP}:{SERVER_PORT}")
         with socket.connect(f"tcp://{SERVER_IP}:{SERVER_PORT}") as conn:
             print(f"Connected to server at {SERVER_IP}:{SERVER_PORT}")
-            print(f"Sending audio clip of length {len(audio_clip)}")
-            await conn.send(processing_type.encode("utf-8") + b':' + (
-                speaker.encode("utf-8") if speaker else b'') + b':' + audio_clip)
+            print(f"Preparing payload for audio clip of length {len(audio_clip)}")
+            payload = processing_type.encode("utf-8") + b':' + (
+                speaker.encode("utf-8") if speaker else b'') + b':' + audio_clip
+            print(f"Sending payload of length {len(payload)}")
+            await conn.send(payload)
+            print(f"Sent audio clip!")
             return True
     except Exception as e:
         print(f"An error occurred while sending the audio clip: {e}")
