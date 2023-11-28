@@ -15,8 +15,7 @@ logging.basicConfig(level=logging.INFO)
 sd.default.dtype = "int16"
 # First for raspberry pi
 if os.name == "posix":
-    pass
-    #sd.default.device = "ac108"
+    sd.default.device = "ac108"
 elif os.name == "nt":
     pass
     # sd.default.device = 0
