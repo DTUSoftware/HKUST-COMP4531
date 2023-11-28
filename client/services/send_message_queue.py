@@ -23,9 +23,8 @@ async def send_audio_clip_to_server(audio_clip, processing_type="meeting", speak
             print(f"Preparing payload for audio clip of length {len(audio_clip)}")
             payload = processing_type.encode("utf-8") + b':' + (
                 speaker.encode("utf-8") if speaker else b'') + b':' + audio_clip
-            print(f"Sending payload of length {len(payload)}")
+            print(f"Sending payload of length {len(payload)}... please wait!")
             await conn.send(payload)
-            print(f"Sent audio clip!")
             return True
     except Exception as e:
         print(f"An error occurred while sending the audio clip: {e}")
