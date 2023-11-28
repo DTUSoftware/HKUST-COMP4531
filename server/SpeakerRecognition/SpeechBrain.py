@@ -21,6 +21,12 @@ class SpeechBrainSpeaker(Speaker):
 
         self.similarity = torch.nn.CosineSimilarity(dim=-1, eps=1e-6)
 
+    async def get_embedding_similarity_score(self, embeddings) -> float:
+        if not self.embeddings or not embeddings:
+            return -1
+        score = self.similarity(self.embeddings, embeddings)
+        return score
+
     async def is_speaker(self, audio: str, embeddings=None, threshold=0.25) -> bool:
         """
         https://huggingface.co/speechbrain/spkrec-ecapa-voxceleb#perform-speaker-verification
@@ -32,7 +38,7 @@ class SpeechBrainSpeaker(Speaker):
         # If we have embeddings, verify using embeddings manually
         if embeddings is not None and self.embeddings is not None:
             print(f"Checking using embeddings for speaker {self.name}")
-            score = self.similarity(self.embeddings, embeddings)
+            score = await self.get_embedding_similarity_score(embeddings)
             prediction = score > threshold
             print(f"Prediction for Speaker {self.name} is {prediction} ({score}) with embeddings.")
             return prediction == 1
@@ -79,12 +85,25 @@ class SpeechBrain(SpeakerClass):
         self.speakers.append(speaker)
         return speaker
 
-    async def recognize(self, audio: str) -> Optional[Speaker]:
+    async def recognize(self, audio: str, threshold=0.25) -> Optional[Speaker]:
         embeddings = await self.get_embeddings(audio)
+
+        # We want to get the similarity score for each speaker, in case we have multiple speakers below the threshold
+        similarity_scores = []
         for speaker in self.speakers:
-            if await speaker.is_speaker(audio, embeddings=embeddings):
-                print(f"Speaker {speaker.name} recognized!")
-                return speaker
+            score = await speaker.get_embedding_similarity_score(embeddings)
+            similarity_scores.append((score, speaker))
+
+        # Sort the similarity scores, such that the highest similarity score is first
+        similarity_scores.sort(key=lambda x: x[0], reverse=True)
+        # Get highest similarity score
+        highest_similarity_score = similarity_scores[0]
+
+        # Check if the highest similarity score is above the threshold
+        if highest_similarity_score[0] > threshold:
+            print(f"Speaker recognized as {highest_similarity_score[1].name} with score {highest_similarity_score[0]}")
+            return highest_similarity_score[1]
+
         print(f"Speaker not recognized!")
         return None
 
