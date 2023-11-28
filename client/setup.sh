@@ -9,7 +9,7 @@ cp setup-files/ ~/
 # Add crontab
 echo "*/5 * * * * ~/duckdns/duck.sh >/dev/null 2>&1" > 
 
-useradd -m iot
+useradd -m -p '*' iot
 su iot
 
 mkdir ~/.ssh
