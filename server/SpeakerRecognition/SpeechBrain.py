@@ -22,7 +22,7 @@ class SpeechBrainSpeaker(Speaker):
         self.similarity = torch.nn.CosineSimilarity(dim=-1, eps=1e-6)
 
     async def get_embedding_similarity_score(self, embeddings) -> float:
-        if not self.embeddings or not embeddings:
+        if self.embeddings is None or embeddings is None:
             return -1
         score = self.similarity(self.embeddings, embeddings)
         return score
