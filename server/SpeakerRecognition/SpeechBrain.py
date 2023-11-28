@@ -85,7 +85,7 @@ class SpeechBrain(SpeakerClass):
         self.speakers.append(speaker)
         return speaker
 
-    async def recognize(self, audio: str) -> Optional[Speaker]:
+    async def recognize(self, audio: str, threshold=0.25) -> Optional[Speaker]:
         embeddings = await self.get_embeddings(audio)
 
         # We want to get the similarity score for each speaker, in case we have multiple speakers below the threshold
@@ -94,16 +94,16 @@ class SpeechBrain(SpeakerClass):
             score = await speaker.get_embedding_similarity_score(embeddings)
             similarity_scores.append((score, speaker))
 
-        # Sort the similarity scores
+        # Sort the similarity scores, such that the highest similarity score is first
         similarity_scores.sort(key=lambda x: x[0], reverse=True)
         # Get highest similarity score
         highest_similarity_score = similarity_scores[0]
 
         # Check if the highest similarity score is above the threshold
-        if highest_similarity_score[0] > 0.25:
+        if highest_similarity_score[0] > threshold:
             print(f"Speaker recognized as {highest_similarity_score[1].name} with score {highest_similarity_score[0]}")
             return highest_similarity_score[1]
-        
+
         print(f"Speaker not recognized!")
         return None
 
